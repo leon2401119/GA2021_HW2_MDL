@@ -155,11 +155,11 @@ def run():
         print(f'{fitness[0]}/{fitness[1]}/{fitness[2]}')
 
         if float(fitness[0]) == 100:
-            print('Found global optima!')
+            print('Found global optima! :)')
             break
-        # if float(fitness[0]) == float(fitness[2]):
-        #     print('Converge to local optima!')
-        #     break
+        if float(fitness[0]) == float(fitness[2]):
+            print('Converge to local optima! :O')
+            break
         
         gen += 1
 
