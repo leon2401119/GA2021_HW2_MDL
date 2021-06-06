@@ -1,7 +1,10 @@
-from sys import argv, exit
+from sys import argv, stdout, exit
 from math import log
 from copy import deepcopy
 import numpy as np
+import requests
+
+student_id = 'r09921104'
 
 pop = None
 zipped_pop = None
@@ -37,19 +40,16 @@ class Group:
         for bits in selected_bits:
             bb_freq_list[bits] += 1
 
-        # print(bb_freq_list)
         bb_freq_list = [item/len(pop) for item in bb_freq_list]
-        # print(bb_freq_list)
         for item in bb_freq_list:
             self.bb_d_data += (item*log(item,2)) if item != 0 else 0
-        # print(self.bb_d_data)
 
 
-    def show(self):
-        print(f'{len(self.gene_list)}',end=' ')
+    def show(self,f):
+        print(f'{len(self.gene_list)}',end=' ',file=f)
         for gene in self.gene_list:
-            print(f'{gene}',end=' ')
-        print("")
+            print(f'{gene}',end=' ',file=f)
+        print("",file=f)
 
 
 class MDL:
@@ -74,7 +74,6 @@ class MDL:
     def greedy_step(self):
         best_group_list = self.group_list
         best_dscr_len = self.dscr_len
-        # print(f'base mdl = {self.dscr_len}')
 
         for m1 in range(len(self.group_list)):
             for m2 in range(m1+1,len(self.group_list)):
@@ -84,7 +83,6 @@ class MDL:
                 new_group_list.pop(m2)
 
                 new_dscr_len = self.get_dscr_len(new_group_list)
-                # print(new_dscr_len)
                 if new_dscr_len < best_dscr_len:
                     # found better grouping
                     best_group_list = new_group_list
@@ -99,14 +97,13 @@ class MDL:
 
     def greedy(self):
         while(self.greedy_step()):
-            # print(len(self.group_list))
             pass
 
-    def output(self):
-        print(len(self.group_list))
-        for group in self.group_list:
-            group.show()
-
+    def output(self,gen):
+        with open(f'mpm{gen:03}.txt','w') as f:
+            print(len(self.group_list),file=f)
+            for group in self.group_list:
+                group.show(f)
 
 def read_file(path):
     l = []
@@ -120,19 +117,56 @@ def read_file(path):
     return l
 
 
+def download(gen):
+    r = requests.get(url=f'http://140.112.175.111:8888/population/{student_id}/popu{gen:03}.txt')
+    population = r.content.decode('utf8').split()
+    with open(f'./popu{gen:03}.txt', 'wb') as f:
+        f.write(r.content)
+    return population
+
+def upload(gen, filepath):
+    r = requests.post(url=f'http://140.112.175.111:8888/api/{student_id}',
+    files = {'file': open(filepath, 'rb')},
+    data = {'gen': f'{gen}'})
+    fitness = r.json()['fitness'].split('\n')[0].split()[1].split(':')[2].split('/')
+    opt = r.json()['fitness'].split('\n')[1].split(':')[1]
+    return fitness, opt
+
+def run():
+    gen = 0
+
+    while True:
+        download(gen)
+        input_file = f'popu{gen:03}.txt'
+        global pop
+        pop = read_file(input_file)
+        global zipped_pop
+        zipped_pop = [list(i) for i in zip(*pop)]
+        pop = np.array(pop)
+        zipped_pop = np.array(zipped_pop)
+    
+        # print(zipped_pop[0])
+
+        mdl = MDL()
+        mdl.greedy()
+        mdl.output(gen)
+
+        fitness, opt = upload(gen, f'mpm{gen:03}.txt')
+        print(f'{fitness[0]}/{fitness[1]}/{fitness[2]}')
+
+        if float(fitness[0]) == 100:
+            print('Found global optima!')
+            break
+        # if float(fitness[0]) == float(fitness[2]):
+        #     print('Converge to local optima!')
+        #     break
+        
+        gen += 1
+
+
 if __name__ == '__main__':
     if len(argv)<2:
-        print("usage: python3 mdl.py src_file")
+        print("usage: python3 mdl.py id")
         exit()
-
-    pop = read_file(argv[1])
-    zipped_pop = [list(i) for i in zip(*pop)]
-    pop = np.array(pop)
-    zipped_pop = np.array(zipped_pop)
-    
-    # print(zipped_pop[0])
-
-    mdl = MDL()
-    mdl.greedy()
-    mdl.output()
-
+    student_id = argv[1]
+    run()
