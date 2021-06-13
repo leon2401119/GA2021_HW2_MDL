@@ -91,6 +91,7 @@ class MDL:
         # apply best grouping
         if self.group_list != best_group_list:
             self.group_list = best_group_list
+            self.dscr_len = best_dscr_len
             return True
         
         return False
